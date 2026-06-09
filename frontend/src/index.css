@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { background: #080b10; color: #cbd5e1; font-family: 'Inter', system-ui, sans-serif; }
+
+/* Engineering dot-grid background for viewport and panels */
+.eng-grid {
+  background-color: #080b10;
+  background-image: radial-gradient(circle, #131f2e 1px, transparent 1px);
+  background-size: 36px 36px;
+}
+
+/* Subtle line-grid for panel backgrounds */
+.eng-lines {
+  background-color: #090e16;
+  background-image:
+    linear-gradient(rgba(20, 32, 48, 0.5) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 32, 48, 0.5) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+/* Scrollbar */
+.chat-scroll::-webkit-scrollbar { width: 3px; }
+.chat-scroll::-webkit-scrollbar-track { background: transparent; }
+.chat-scroll::-webkit-scrollbar-thumb { background: #1e2d3d; }
+
+/* Code block styling */
+pre { background: #0d1117; border: 1px solid #1e2d3d; border-left: 2px solid #4ade80; border-radius: 0; padding: 12px; overflow-x: auto; font-size: 12px; line-height: 1.7; }
+code { font-family: 'JetBrains Mono', 'Fira Code', monospace; }

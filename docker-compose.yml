@@ -1,0 +1,32 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      platforms:
+        - linux/amd64
+    platform: linux/amd64
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./workspace:/workspace
+      - ./data:/data
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - WORKSPACE_DIR=/workspace
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes: {}

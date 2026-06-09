@@ -16,7 +16,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="CAD Agent API",
-    description="Agentic CAD modeling via CadQuery + GPT-4o with human-in-the-loop approval",
+    description="Agentic CAD modeling via CadQuery + GPT-5.4 with human-in-the-loop approval",
     version="0.1.0",
     lifespan=lifespan,
 )

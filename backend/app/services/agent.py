@@ -21,6 +21,11 @@ from app.services.tools.definitions import SYSTEM_PROMPT, TOOLS
 
 import re
 
+import logging
+import time
+
+logger = logging.getLogger(__name__)
+
 client = AsyncOpenAI(api_key=settings.openai_api_key)
 
 
@@ -57,6 +62,9 @@ async def run_agent_turn(session: Session, user_message: str, force_tool: str | 
     )
 
     choice = response.choices[0]
+
+    fn_name = choice.message.tool_calls[0].function.name if choice.finish_reason == "tool_calls" else "none"
+    logger.info("agent_turn session=%s model=%s tool=%s status=%s", session.id, settings.model, fn_name, session.status)
 
     if choice.finish_reason == "tool_calls":
         tool_call = choice.message.tool_calls[0]
@@ -136,7 +144,10 @@ async def execute_approved_code(session: Session) -> dict:
 
     await update_session_status(session, "executing")
 
+    start = time.time()
     result = execute_cadquery(session.pending_code, str(session.id))
+    duration_ms = int((time.time() - start) * 1000)
+    logger.info("execution session=%s iteration=%d success=%s duration_ms=%d", session.id, session.iteration, result.success, duration_ms)
 
     if result.success:
         await update_session_artifact(session, result.stl_path, result.png_path)

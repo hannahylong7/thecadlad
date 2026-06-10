@@ -109,7 +109,11 @@ def execute_cadquery(code: str, session_id: str) -> ExecutionResult:
             capture_output=True,
             text=True,
             timeout=EXECUTOR_TIMEOUT,
-            env={**os.environ, "DISPLAY": ":99"},
+            env={
+                    "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
+                    "HOME": os.environ.get("HOME", "/tmp"),
+                    "DISPLAY": ":99",
+                },
         )
     except subprocess.TimeoutExpired:
         return ExecutionResult(

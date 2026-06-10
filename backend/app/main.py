@@ -7,6 +7,10 @@ from app.core.database import init_db, close_db
 from app.routes.sessions import router as sessions_router
 from app.core.config import settings
 
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

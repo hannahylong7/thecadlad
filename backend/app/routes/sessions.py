@@ -10,6 +10,7 @@ from app.models.schemas import (
     SessionCreateResponse,
     SessionDetailResponse,
     SessionSummaryResponse,
+    AgentResponse,
 )
 from app.models.session import (
     create_session,
@@ -69,7 +70,7 @@ async def delete_session(session_id: str) -> None:
 
 
 @router.post("/sessions/{session_id}/message")
-async def send_message(session_id: str, body: MessageRequest) -> dict:
+async def send_message(session_id: str, body: MessageRequest) -> AgentResponse:
     session = await _get_or_404(session_id)
 
     if session.status == "executing":
@@ -82,7 +83,7 @@ async def send_message(session_id: str, body: MessageRequest) -> dict:
 
 
 @router.post("/sessions/{session_id}/approve")
-async def approve_step(session_id: str, body: ApproveRequest) -> dict:
+async def approve_step(session_id: str, body: ApproveRequest) -> AgentResponse:
     session = await _get_or_404(session_id)
 
     if session.status == "awaiting_plan_approval":
@@ -97,7 +98,7 @@ async def approve_step(session_id: str, body: ApproveRequest) -> dict:
 
 
 @router.post("/sessions/{session_id}/approve-geometry")
-async def approve_geometry_endpoint(session_id: str) -> dict:
+async def approve_geometry_endpoint(session_id: str) -> AgentResponse:
     session = await _get_or_404(session_id)
 
     if session.status != "rendered":
@@ -174,7 +175,7 @@ async def _session_to_detail(session: Session) -> SessionDetailResponse:
         iteration=session.iteration,
         has_render=session.current_png_path is not None,
         has_model=session.current_stl_path is not None and session.status == "approved",
-        model_count=len(models),
+        version_count=len(models),
         created_at=session.created_at,
         updated_at=session.updated_at,
     )

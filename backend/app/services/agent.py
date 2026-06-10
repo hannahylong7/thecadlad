@@ -19,9 +19,9 @@ from app.models.session import (
 from app.services.executor import execute_cadquery
 from app.services.tools.definitions import SYSTEM_PROMPT, TOOLS
 
-client = AsyncOpenAI(api_key=settings.openai_api_key)
-
 import re
+
+client = AsyncOpenAI(api_key=settings.openai_api_key)
 
 
 def _extract_code_block(text: str) -> str | None:

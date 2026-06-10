@@ -1,17 +1,21 @@
 from tortoise import Tortoise
+from app.core.config import settings
 
 
-TORTOISE_ORM = {
-    "connections": {
-        "default": "sqlite:///data/cad_agent.db",
-    },
-    "apps": {
-        "models": {
-            "models": ["app.models.orm", "aerich.models"],
-            "default_connection": "default",
+def get_tortoise_config() -> dict:
+    return {
+        "connections": {
+            "default": settings.database_url,
         },
-    },
-}
+        "apps": {
+            "models": {
+                "models": ["app.models.orm", "aerich.models"],
+                "default_connection": "default",
+            },
+        },
+    }
+
+TORTOISE_ORM = get_tortoise_config()
 
 
 async def init_db() -> None:

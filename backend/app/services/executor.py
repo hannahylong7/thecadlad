@@ -7,7 +7,7 @@ from pathlib import Path
 from app.core.config import settings
 
 
-EXECUTOR_TIMEOUT = 30  # seconds
+EXECUTOR_TIMEOUT = settings.executor_timeout
 
 
 def _build_script(user_code: str, stl_path: str, png_path: str) -> str:

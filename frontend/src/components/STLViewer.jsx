@@ -61,7 +61,7 @@ export default function STLViewer({ modelUrl }) {
     mount.appendChild(renderer.domElement)
 
     const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000)
+    const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000000)
 
     // Lighting
     scene.add(new THREE.AmbientLight(0xffffff, 0.4))

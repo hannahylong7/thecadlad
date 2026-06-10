@@ -59,6 +59,19 @@ class SessionDetailResponse(BaseModel):
     iteration: int
     has_render: bool
     has_model: bool
-    model_count: int
+    version_count: int
     created_at: datetime
     updated_at: datetime
+
+
+class AgentResponse(BaseModel):
+    type: str
+    content: Optional[str] = None
+    plan: Optional[str] = None
+    assumptions: Optional[list[str]] = None
+    code: Optional[str] = None
+    description: Optional[str] = None
+    error_analysis: Optional[str] = None
+    session_status: str
+    png_path: Optional[str] = None
+    stl_path: Optional[str] = None

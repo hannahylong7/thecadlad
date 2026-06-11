@@ -2,6 +2,7 @@ import os
 import subprocess
 import textwrap
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 
 from app.core.config import settings
@@ -14,49 +15,27 @@ def _build_script(user_code: str, stl_path: str, png_path: str) -> str:
     return textwrap.dedent(f"""
 import cadquery as cq
 import sys
-import os
 
-# ── User code ────────────────────────────────────────────────────────────────
+# User code
 {user_code}
 
-# ── Validate result ───────────────────────────────────────────────────────────
 if 'result' not in dir():
     print("ERROR: code must assign final workplane to a variable named `result`", file=sys.stderr)
     sys.exit(1)
 
-# ── Export STL ────────────────────────────────────────────────────────────────
 cq.exporters.export(result, "{stl_path}")
 print("STL_OK:{stl_path}")
 
-# ── Render PNG ────────────────────────────────────────────────────────────────
-# Strategy 1: OCC direct PNG render — best quality, proper 3D shading
-# Requires Xvfb virtual display (set via DISPLAY env var in subprocess call)
+# Render preview
+svg_path = "{png_path}".replace(".png", ".svg")
 try:
-    from cadquery.occ_impl.geom import Vector
-    from cadquery.vis import show_object
-    import tempfile
-
-    # Use CadQuery's built-in offline viewer to render a PNG
-    # camera_position looks at the part from a 3/4 isometric angle
-    cq.exporters.export(
-        result,
-        "{png_path}",
-        exportType="PNG",
-        opt={{
-            "width": 800,
-            "height": 600,
-        }}
-    )
-    print("PNG_OK:{png_path}")
-    sys.exit(0)
-except Exception as e1:
-    print(f"OCC_RENDER_FAILED:{{e1}}", file=sys.stderr)
-
-# Strategy 2: SVG → PNG via cairosvg
-try:
-    svg_path = "{png_path}".replace(".png", ".svg")
     cq.exporters.export(result, svg_path, exportType="SVG")
+except Exception as e:
+    print(f"SVG_RENDER_FAILED:{{e}}", file=sys.stderr)
+    print("PNG_SKIP")
+    sys.exit(0)
 
+try:
     import cairosvg
     cairosvg.svg2png(
         url=svg_path,
@@ -67,28 +46,19 @@ try:
     )
     print("PNG_OK:{png_path}")
     sys.exit(0)
-except Exception as e2:
-    print(f"CAIRO_RENDER_FAILED:{{e2}}", file=sys.stderr)
-
-# Strategy 3: SVG fallback — flat technical drawing, always works
-try:
-    svg_path = "{png_path}".replace(".png", ".svg")
-    cq.exporters.export(result, svg_path, exportType="SVG")
+except Exception as e:
+    print(f"PNG_RENDER_FAILED:{{e}}", file=sys.stderr)
     print("SVG_OK:" + svg_path)
-except Exception as e3:
-    print(f"RENDER_WARN:{{e3}}", file=sys.stderr)
-    print("PNG_SKIP")
 """)
 
 
+@dataclass
 class ExecutionResult:
-    def __init__(self, success: bool, stl_path: str | None, png_path: str | None,
-                 stdout: str, stderr: str):
-        self.success = success
-        self.stl_path = stl_path
-        self.png_path = png_path
-        self.stdout = stdout
-        self.stderr = stderr
+    success: bool
+    stl_path: str | None
+    png_path: str | None
+    stdout: str
+    stderr: str
 
 
 def execute_cadquery(code: str, session_id: str) -> ExecutionResult:
@@ -109,10 +79,9 @@ def execute_cadquery(code: str, session_id: str) -> ExecutionResult:
             capture_output=True,
             text=True,
             timeout=EXECUTOR_TIMEOUT,
-            env={
+                env={
                     "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
                     "HOME": os.environ.get("HOME", "/tmp"),
-                    "DISPLAY": ":99",
                 },
         )
     except subprocess.TimeoutExpired:

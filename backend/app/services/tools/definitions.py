@@ -8,6 +8,7 @@ TOOLS = [
                 "model the part. Outline the key geometric operations, parameters, and "
                 "approach. The user must approve the plan before you proceed to code."
             ),
+            "strict": True,
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -27,6 +28,7 @@ TOOLS = [
                     },
                 },
                 "required": ["plan", "assumptions"],
+                "additionalProperties": False,
             },
         },
     },
@@ -40,6 +42,7 @@ TOOLS = [
                 "The final result MUST be assigned to a variable named `result`. "
                 "Do not include import statements — cadquery is already imported as `cq`."
             ),
+            "strict": True,
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -56,6 +59,7 @@ TOOLS = [
                     },
                 },
                 "required": ["code", "description"],
+                "additionalProperties": False,
             },
         },
     },
@@ -67,6 +71,7 @@ TOOLS = [
                 "Called when code execution fails. Explain what went wrong "
                 "and propose corrected code."
             ),
+            "strict": True,
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -80,6 +85,7 @@ TOOLS = [
                     },
                 },
                 "required": ["error_analysis", "corrected_code"],
+                "additionalProperties": False,
             },
         },
     },

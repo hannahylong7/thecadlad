@@ -36,13 +36,29 @@ async def update_session_status(session: Session, status: SessionStatus) -> None
     await session.save(update_fields=["status", "updated_at"])
 
 
-async def update_session_pending(
-    session: Session,
-    pending_code: str | None = None,
-    pending_plan: str | None = None,
-) -> None:
-    session.pending_code = pending_code
-    session.pending_plan = pending_plan
+async def set_pending_plan(session: Session, plan: str) -> None:
+    session.pending_plan = plan
+    await session.save(update_fields=["pending_plan", "updated_at"])
+
+
+async def clear_pending_plan(session: Session) -> None:
+    session.pending_plan = None
+    await session.save(update_fields=["pending_plan", "updated_at"])
+
+
+async def set_pending_code(session: Session, code: str) -> None:
+    session.pending_code = code
+    await session.save(update_fields=["pending_code", "updated_at"])
+
+
+async def clear_pending_code(session: Session) -> None:
+    session.pending_code = None
+    await session.save(update_fields=["pending_code", "updated_at"])
+
+
+async def clear_pending_state(session: Session) -> None:
+    session.pending_code = None
+    session.pending_plan = None
     await session.save(update_fields=["pending_code", "pending_plan", "updated_at"])
 
 

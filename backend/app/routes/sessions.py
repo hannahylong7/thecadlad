@@ -6,7 +6,6 @@ from app.models.schemas import (
     ApproveRequest,
     MessageRequest,
     MessageResponse,
-    ModelResponse,
     SessionCreateResponse,
     SessionDetailResponse,
     SessionSummaryResponse,
@@ -73,8 +72,8 @@ async def delete_session(session_id: str) -> None:
     await session.delete()
 
 
-@router.post("/sessions/{session_id}/message")
-async def send_message(session_id: str, body: MessageRequest) -> AgentResponse:
+@router.post("/sessions/{session_id}/message", response_model=AgentResponse)
+async def send_message(session_id: str, body: MessageRequest) -> dict:
     session = await _get_or_404(session_id)
 
     if session.status == "executing":
@@ -86,14 +85,26 @@ async def send_message(session_id: str, body: MessageRequest) -> AgentResponse:
     return {**result, "session_status": session.status}
 
 
-@router.post("/sessions/{session_id}/approve")
-async def approve_step(session_id: str, body: ApproveRequest) -> AgentResponse:
+@router.post("/sessions/{session_id}/approve", response_model=AgentResponse)
+async def approve_step(
+    session_id: str,
+    body: ApproveRequest,
+    background_tasks: BackgroundTasks,
+) -> dict:
     session = await _get_or_404(session_id)
 
     if session.status == "awaiting_plan_approval":
         result = await handle_plan_response(session, body.approved, body.feedback)
     elif session.status == "awaiting_code_approval":
-        result = await handle_code_response(session, body.approved, body.feedback)
+        if body.approved:
+            background_tasks.add_task(_run_execution_background, session_id)
+            await update_session_status(session, "executing")
+            return {
+                "type": "executing",
+                "session_status": "executing",
+            }
+
+        result = await handle_code_response(session, False, body.feedback)
     else:
         raise HTTPException(409, f"Nothing to approve in status: {session.status}")
 
@@ -101,8 +112,8 @@ async def approve_step(session_id: str, body: ApproveRequest) -> AgentResponse:
     return {**result, "session_status": session.status}
 
 
-@router.post("/sessions/{session_id}/approve-geometry")
-async def approve_geometry_endpoint(session_id: str) -> AgentResponse:
+@router.post("/sessions/{session_id}/approve-geometry", response_model=AgentResponse)
+async def approve_geometry_endpoint(session_id: str) -> dict:
     session = await _get_or_404(session_id)
 
     if session.status != "rendered":
@@ -149,37 +160,6 @@ async def get_session_jobs(session_id: str) -> list[JobResponse]:
         )
         for j in jobs
     ]
- 
- 
-@router.post("/sessions/{session_id}/approve/async")
-async def approve_step_async(
-    session_id: str,
-    body: ApproveRequest,
-    background_tasks: BackgroundTasks,
-) -> dict:
-    session = await _get_or_404(session_id)
- 
-    if session.status == "awaiting_plan_approval":
-        result = await handle_plan_response(session, body.approved, body.feedback)
-        session = await _get_or_404(session_id)
-        return {**result, "session_status": session.status}
- 
-    elif session.status == "awaiting_code_approval":
-        if not body.approved:
-            result = await handle_code_response(session, False, body.feedback)
-            session = await _get_or_404(session_id)
-            return {**result, "session_status": session.status}
- 
-        # Kick off execution as background task, return immediately
-        background_tasks.add_task(_run_execution_background, session_id)
-        await update_session_status(session, "executing")
-        return {
-            "type": "executing",
-            "session_status": "executing",
-        }
- 
-    else:
-        raise HTTPException(409, f"Nothing to approve in status: {session.status}")
  
  
 async def _run_execution_background(session_id: str) -> None:

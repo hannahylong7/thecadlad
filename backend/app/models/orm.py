@@ -113,4 +113,5 @@ class CADJob(Model):
 
 
     def __str__(self):
-        return f"CADModel(session={self.session_id}, iteration={self.iteration})"
+        session_id = getattr(self, "session_id", None)
+        return f"CADJob(session={session_id}, iteration={self.iteration})"

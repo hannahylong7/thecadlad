@@ -9,9 +9,38 @@ import {
   createSession,
   sendMessage,
   approveStep,
-  approveStepAsync,
   getSessionDetail,
 } from './api/client'
+
+const CODE_REJECTED_PREFIX = 'Code rejected. Feedback: '
+const PLAN_REJECTED_PREFIX = 'Plan rejected. Feedback: '
+
+function replayMessages(messages) {
+  return messages
+    .map(m => {
+      if (m.role === 'user' && m.content === 'Plan approved. Please write the CadQuery code.') return null
+      if (m.role === 'user' && m.content.startsWith('Execution failed:')) return null
+
+      if (m.role === 'user' && m.content.startsWith(CODE_REJECTED_PREFIX)) {
+        return { type: 'user', content: `Revise: ${m.content.slice(CODE_REJECTED_PREFIX.length)}`, id: m.timestamp }
+      }
+      if (m.role === 'user' && m.content.startsWith(PLAN_REJECTED_PREFIX)) {
+        return { type: 'user', content: `Revise: ${m.content.slice(PLAN_REJECTED_PREFIX.length)}`, id: m.timestamp }
+      }
+
+      if (m.role === 'user') return { type: 'user', content: m.content, id: m.timestamp }
+
+      if (m.content.startsWith('[tool_call:')) {
+        if (m.plan) return { type: 'plan', plan: m.plan, assumptions: [], id: m.timestamp }
+        if (m.code && m.content.includes('self_correct')) return { type: 'correction', code: m.code, id: m.timestamp }
+        if (m.code) return { type: 'code', code: m.code, description: '', id: m.timestamp }
+        return null
+      }
+
+      return { type: 'assistant', content: m.content, id: m.timestamp }
+    })
+    .filter(Boolean)
+}
 
 export default function App() {
   const [sessionId, setSessionId] = useState(null)
@@ -52,32 +81,7 @@ export default function App() {
       setSessionTitle(session.title)
       setPendingType(null)
 
-      const replayedMessages = session.messages
-        .map(m => {
-          if (m.role === 'user' && m.content === 'Plan approved. Please write the CadQuery code.') return null
-          if (m.role === 'user' && m.content.startsWith('Execution failed:')) return null
-
-          if (m.role === 'user' && m.content.startsWith('Code rejected. Feedback:')) {
-            return { type: 'user', content: `Revise: ${m.content.slice('Code rejected. Feedback: '.length)}`, id: m.timestamp }
-          }
-          if (m.role === 'user' && m.content.startsWith('Plan rejected. Feedback:')) {
-            return { type: 'user', content: `Revise: ${m.content.slice('Plan rejected. Feedback: '.length)}`, id: m.timestamp }
-          }
-
-          if (m.role === 'user') return { type: 'user', content: m.content, id: m.timestamp }
-
-          if (m.content.startsWith('[tool_call:')) {
-            if (m.plan) return { type: 'plan', plan: m.plan, assumptions: [], id: m.timestamp }
-            if (m.code && m.content.includes('self_correct')) return { type: 'correction', code: m.code, id: m.timestamp }
-            if (m.code) return { type: 'code', code: m.code, description: '', id: m.timestamp }
-            return null
-          }
-
-          return { type: 'assistant', content: m.content, id: m.timestamp }
-        })
-        .filter(Boolean)
-
-      setMessages(replayedMessages)
+      setMessages(replayMessages(session.messages))
 
       if (session.status === 'awaiting_plan_approval') setPendingType('plan')
       else if (session.status === 'awaiting_code_approval') setPendingType('code')
@@ -148,7 +152,7 @@ export default function App() {
     setThinking(true)
     setPendingType(null)
     try {
-      const result = await approveStepAsync(sessionId, true, feedback)
+      const result = await approveStep(sessionId, true, feedback)
       setSessionStatus(result.session_status)
       if (result.session_status === 'executing') {
         const poll = setInterval(async () => {
@@ -161,16 +165,7 @@ export default function App() {
                 handleAgentResult({ type: 'render_complete', session_status: session.status })
               } else {
                 const updated = await getSessionDetail(sessionId)
-                const replayed = updated.messages
-                  .filter(m => !m.content.startsWith('[tool_call:'))
-                  .map(m => {
-                    if (m.role === 'user') return { type: 'user', content: m.content, id: m.timestamp }
-                    if (m.code && m.content.includes('self_correct')) return { type: 'correction', code: m.code, id: m.timestamp }
-                    if (m.code) return { type: 'code', code: m.code, description: '', id: m.timestamp }
-                    if (m.plan) return { type: 'plan', plan: m.plan, assumptions: [], id: m.timestamp }
-                    return { type: 'assistant', content: m.content, id: m.timestamp }
-                  })
-                setMessages(replayed)
+                setMessages(replayMessages(updated.messages))
                 setPendingType(session.status === 'awaiting_code_approval' ? 'correction' : null)
               }
               setThinking(false)

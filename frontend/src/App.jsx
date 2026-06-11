@@ -9,6 +9,7 @@ import {
   createSession,
   sendMessage,
   approveStep,
+  approveStepAsync,
   getSessionDetail,
 } from './api/client'
 
@@ -147,12 +148,44 @@ export default function App() {
     setThinking(true)
     setPendingType(null)
     try {
-      const result = await approveStep(sessionId, true, feedback)
+      const result = await approveStepAsync(sessionId, true, feedback)
       setSessionStatus(result.session_status)
-      handleAgentResult(result)
+      if (result.session_status === 'executing') {
+        const poll = setInterval(async () => {
+          try {
+            const session = await getSessionDetail(sessionId)
+            setSessionStatus(session.status)
+            if (session.status !== 'executing') {
+              clearInterval(poll)
+              if (session.status === 'rendered') {
+                handleAgentResult({ type: 'render_complete', session_status: session.status })
+              } else {
+                const updated = await getSessionDetail(sessionId)
+                const replayed = updated.messages
+                  .filter(m => !m.content.startsWith('[tool_call:'))
+                  .map(m => {
+                    if (m.role === 'user') return { type: 'user', content: m.content, id: m.timestamp }
+                    if (m.code && m.content.includes('self_correct')) return { type: 'correction', code: m.code, id: m.timestamp }
+                    if (m.code) return { type: 'code', code: m.code, description: '', id: m.timestamp }
+                    if (m.plan) return { type: 'plan', plan: m.plan, assumptions: [], id: m.timestamp }
+                    return { type: 'assistant', content: m.content, id: m.timestamp }
+                  })
+                setMessages(replayed)
+                setPendingType(session.status === 'awaiting_code_approval' ? 'correction' : null)
+              }
+              setThinking(false)
+            }
+          } catch (pollErr) {
+            clearInterval(poll)
+            setThinking(false)
+          }
+        }, 2000)
+      } else {
+        handleAgentResult(result)
+        setThinking(false)
+      }
     } catch (err) {
       addMessage({ type: 'assistant', content: `Error: ${err.message}` })
-    } finally {
       setThinking(false)
     }
   }

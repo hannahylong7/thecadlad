@@ -1,13 +1,22 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import STLViewer from './STLViewer'
 import { approveGeometry, getRenderUrl, getModelUrl } from '../api/client'
 
 export default function Viewport({ sessionId, sessionStatus, onGeometryApproved }) {
   const [approving, setApproving] = useState(false)
+  const [frozenModelUrl, setFrozenModelUrl] = useState(null)
 
   const hasRender = sessionStatus === 'rendered' || sessionStatus === 'approved'
   const hasModel = sessionStatus === 'approved'
   const isExecuting = sessionStatus === 'executing'
+
+  useEffect(() => {
+    if (hasModel && sessionId) {
+      setFrozenModelUrl(getModelUrl(sessionId) + '?t=' + Date.now())
+    } else if (!hasModel) {
+      setFrozenModelUrl(null)
+    }
+  }, [hasModel, sessionId])
 
   async function handleApproveGeometry() {
     setApproving(true)
@@ -58,7 +67,7 @@ export default function Viewport({ sessionId, sessionStatus, onGeometryApproved 
         </div>
         {hasModel && (
           <a
-            href={getModelUrl(sessionId)}
+            href={frozenModelUrl || getModelUrl(sessionId)}
             download="model.stl"
             className="text-xs font-mono text-slate-500 hover:text-amber-400 border border-slate-700 hover:border-amber-500/50 px-2.5 py-1 uppercase tracking-wide transition-colors"
           >
@@ -70,7 +79,7 @@ export default function Viewport({ sessionId, sessionStatus, onGeometryApproved 
       {/* Render or 3D viewer */}
       <div className="flex-1 relative eng-grid">
         {hasModel ? (
-          <STLViewer modelUrl={getModelUrl(sessionId)} />
+          <STLViewer modelUrl={frozenModelUrl} />
         ) : (
           <div className="h-full flex flex-col">
             <div className="flex-1 flex items-center justify-center p-4">

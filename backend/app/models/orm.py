@@ -22,6 +22,7 @@ class Session(Model):
 
     messages: fields.ReverseRelation["Message"]
     cad_models: fields.ReverseRelation["CADModel"]
+    jobs: fields.ReverseRelation["CADJob"]
 
     class Meta:
         table = "sessions"
@@ -79,6 +80,37 @@ class CADModel(Model):
     class Meta:
         table = "cad_models"
         ordering = ["-created_at"]
+
+
+class CADJob(Model):
+    id = fields.UUIDField(pk=True)
+ 
+    session = fields.ForeignKeyField(
+        "models.Session",
+        related_name="jobs",
+        on_delete=fields.CASCADE,
+    )
+ 
+    status = fields.CharField(max_length=50, default="pending")
+ 
+    code = fields.TextField()
+ 
+    stdout = fields.TextField(null=True)
+    stderr = fields.TextField(null=True)
+    duration_ms = fields.IntField(null=True)
+ 
+    iteration = fields.IntField(default=1)
+ 
+    stl_path = fields.CharField(max_length=512, null=True)
+    png_path = fields.CharField(max_length=512, null=True)
+ 
+    created_at = fields.DatetimeField(auto_now_add=True)
+    updated_at = fields.DatetimeField(auto_now=True)
+
+    class Meta:
+        table = "cad_jobs"
+        ordering = ["-created_at"]
+
 
     def __str__(self):
         return f"CADModel(session={self.session_id}, iteration={self.iteration})"

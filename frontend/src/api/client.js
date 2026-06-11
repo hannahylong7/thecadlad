@@ -62,3 +62,19 @@ export function getRenderUrl(sessionId) {
 export function getModelUrl(sessionId) {
   return `${BASE}/sessions/${sessionId}/model`
 }
+
+export async function approveStepAsync(sessionId, approved, feedback = null) {
+  const res = await fetch(`${BASE}/sessions/${sessionId}/approve/async`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ approved, feedback }),
+  })
+  if (!res.ok) throw new Error('Failed to submit approval')
+  return res.json()
+}
+ 
+export async function getSessionJobs(sessionId) {
+  const res = await fetch(`${BASE}/sessions/${sessionId}/jobs`)
+  if (!res.ok) throw new Error('Failed to get jobs')
+  return res.json()
+}

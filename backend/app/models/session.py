@@ -1,6 +1,6 @@
 from typing import Literal
 
-from app.models.orm import CADModel, Message, Session
+from app.models.orm import CADModel, Message, Session, CADJob
 
 
 MessageRole = Literal["user", "assistant", "system"]
@@ -119,3 +119,42 @@ async def approve_cad_model(session: Session) -> CADModel | None:
         model.approved = True
         await model.save(update_fields=["approved"])
     return model
+
+
+async def create_job(session: Session, code: str) -> CADJob:
+    """Create a new job record before execution starts."""
+    return await CADJob.create(
+        session=session,
+        code=code,
+        status="pending",
+        iteration=session.iteration + 1,
+    )
+ 
+ 
+async def complete_job(
+    job: CADJob,
+    stl_path: str,
+    png_path: str | None,
+    stdout: str,
+    duration_ms: int,
+) -> None:
+    """Mark a job as complete with artifact paths and timing."""
+    job.status = "complete"
+    job.stl_path = stl_path
+    job.png_path = png_path
+    job.stdout = stdout
+    job.duration_ms = duration_ms
+    await job.save(update_fields=["status", "stl_path", "png_path", "stdout", "duration_ms", "updated_at"])
+ 
+ 
+async def fail_job(job: CADJob, stderr: str, duration_ms: int, timed_out: bool = False) -> None:
+    """Mark a job as failed with error output."""
+    job.status = "timeout" if timed_out else "failed"
+    job.stderr = stderr
+    job.duration_ms = duration_ms
+    await job.save(update_fields=["status", "stderr", "duration_ms", "updated_at"])
+ 
+ 
+async def get_jobs(session: Session) -> list[CADJob]:
+    """All jobs for a session, newest first."""
+    return await CADJob.filter(session=session).order_by("-created_at")

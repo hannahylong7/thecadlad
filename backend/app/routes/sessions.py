@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
 
 from app.models.orm import Session
@@ -11,6 +11,7 @@ from app.models.schemas import (
     SessionDetailResponse,
     SessionSummaryResponse,
     AgentResponse,
+    JobResponse,
 )
 from app.models.session import (
     create_session,
@@ -18,13 +19,16 @@ from app.models.session import (
     get_messages,
     get_session,
     list_sessions,
+    get_jobs,
 )
 from app.services.agent import (
     approve_geometry,
     handle_code_response,
     handle_plan_response,
     run_agent_turn,
+    execute_approved_code
 )
+from app.models.session import update_session_status
 
 router = APIRouter()
 
@@ -128,23 +132,71 @@ async def get_model(session_id: str):
     return FileResponse(session.current_stl_path, media_type="application/octet-stream")
 
 
-# @router.get("/sessions/{session_id}/models")
-# async def get_session_models(session_id: str) -> list[ModelResponse]:
-#     session = await _get_or_404(session_id)
-#     models = await get_cad_models(session)
-#     return [
-#         ModelResponse(
-#             id=m.id,
-#             session_id=str(session.id),
-#             stl_path=m.stl_path,
-#             png_path=m.png_path,
-#             iteration=m.iteration,
-#             approved=m.approved,
-#             created_at=m.created_at,
-#         )
-#         for m in models
-#     ]
-
+@router.get("/sessions/{session_id}/jobs")
+async def get_session_jobs(session_id: str) -> list[JobResponse]:
+    session = await _get_or_404(session_id)
+    jobs = await get_jobs(session)
+    return [
+        JobResponse(
+            id=str(j.id),
+            session_id=str(session.id),
+            status=j.status,
+            iteration=j.iteration,
+            duration_ms=j.duration_ms,
+            stl_path=j.stl_path,
+            png_path=j.png_path,
+            created_at=j.created_at,
+        )
+        for j in jobs
+    ]
+ 
+ 
+@router.post("/sessions/{session_id}/approve/async")
+async def approve_step_async(
+    session_id: str,
+    body: ApproveRequest,
+    background_tasks: BackgroundTasks,
+) -> dict:
+    session = await _get_or_404(session_id)
+ 
+    if session.status == "awaiting_plan_approval":
+        result = await handle_plan_response(session, body.approved, body.feedback)
+        session = await _get_or_404(session_id)
+        return {**result, "session_status": session.status}
+ 
+    elif session.status == "awaiting_code_approval":
+        if not body.approved:
+            result = await handle_code_response(session, False, body.feedback)
+            session = await _get_or_404(session_id)
+            return {**result, "session_status": session.status}
+ 
+        # Kick off execution as background task, return immediately
+        background_tasks.add_task(_run_execution_background, session_id)
+        await update_session_status(session, "executing")
+        return {
+            "type": "executing",
+            "session_status": "executing",
+        }
+ 
+    else:
+        raise HTTPException(409, f"Nothing to approve in status: {session.status}")
+ 
+ 
+async def _run_execution_background(session_id: str) -> None:
+    try:
+        session = await get_session(session_id)
+        if session:
+            await execute_approved_code(session)
+    except Exception as exc:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error("background execution crashed session=%s error=%s", session_id, exc)
+        try:
+            session = await get_session(session_id)
+            if session:
+                await update_session_status(session, "error")
+        except Exception:
+            pass
 
 
 async def _get_or_404(session_id: str) -> Session:

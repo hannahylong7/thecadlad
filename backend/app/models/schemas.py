@@ -75,3 +75,14 @@ class AgentResponse(BaseModel):
     session_status: str
     png_path: Optional[str] = None
     stl_path: Optional[str] = None
+
+
+class JobResponse(BaseModel):
+    id: str
+    session_id: str
+    status: str
+    iteration: int
+    duration_ms: Optional[int] = None
+    stl_path: Optional[str] = None
+    png_path: Optional[str] = None
+    created_at: datetime

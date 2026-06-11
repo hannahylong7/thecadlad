@@ -15,6 +15,9 @@ from app.models.session import (
     update_session_artifact,
     update_session_pending,
     update_session_status,
+    complete_job,
+    create_job,
+    fail_job,
 )
 from app.services.executor import execute_cadquery
 from app.services.tools.definitions import SYSTEM_PROMPT, TOOLS
@@ -141,7 +144,8 @@ async def execute_approved_code(session: Session) -> dict:
 
     if not session.pending_code:
         return {"type": "error", "content": "No pending code to execute"}
-
+    
+    job = await create_job(session, session.pending_code)
     await update_session_status(session, "executing")
 
     start = time.time()
@@ -150,6 +154,8 @@ async def execute_approved_code(session: Session) -> dict:
     logger.info("execution session=%s iteration=%d success=%s duration_ms=%d", session.id, session.iteration, result.success, duration_ms)
 
     if result.success:
+        await complete_job(job, result.stl_path, result.png_path, result.stdout or "", duration_ms)
+
         await update_session_artifact(session, result.stl_path, result.png_path)
         await create_cad_model(session, result.stl_path, result.png_path)
 
@@ -165,9 +171,13 @@ async def execute_approved_code(session: Session) -> dict:
             "type": "render_complete",
             "png_path": result.png_path,
             "stl_path": result.stl_path,
+            "job_id": str(job.id),
+            "duration_ms": duration_ms,
         }
 
     else:
+        timed_out = "timed out" in (result.stderr or "").lower()
+        await fail_job(job, result.stderr or "", duration_ms, timed_out=timed_out)
         await update_session_status(session, "error")
         error_msg = f"Execution failed:\n{result.stderr}"
 

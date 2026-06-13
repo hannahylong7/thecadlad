@@ -19,6 +19,7 @@ from app.models.session import (
     get_session,
     list_sessions,
     get_jobs,
+    update_session_status,
 )
 from app.services.agent import (
     approve_geometry,
@@ -27,7 +28,6 @@ from app.services.agent import (
     run_agent_turn,
     execute_approved_code
 )
-from app.models.session import update_session_status
 
 router = APIRouter()
 

@@ -154,7 +154,6 @@ async def complete_job(
     stdout: str,
     duration_ms: int,
 ) -> None:
-    """Mark a job as complete with artifact paths and timing."""
     job.status = "complete"
     job.stl_path = stl_path
     job.png_path = png_path
@@ -164,7 +163,6 @@ async def complete_job(
  
  
 async def fail_job(job: CADJob, stderr: str, duration_ms: int, timed_out: bool = False) -> None:
-    """Mark a job as failed with error output."""
     job.status = "timeout" if timed_out else "failed"
     job.stderr = stderr
     job.duration_ms = duration_ms
@@ -172,5 +170,4 @@ async def fail_job(job: CADJob, stderr: str, duration_ms: int, timed_out: bool =
  
  
 async def get_jobs(session: Session) -> list[CADJob]:
-    """All jobs for a session, newest first."""
     return await CADJob.filter(session=session).order_by("-created_at")

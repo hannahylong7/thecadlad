@@ -39,4 +39,16 @@ app.include_router(sessions_router)
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    from app.models.orm import Session
+    try:
+        await Session.all().count()
+        db_status = "ok"
+    except Exception:
+        db_status = "error"
+ 
+    status = "ok" if db_status == "ok" else "degraded"
+    return {
+        "status": status,
+        "model": settings.model,
+        "database": db_status,
+    }

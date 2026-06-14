@@ -108,10 +108,22 @@ async def get_messages(session: Session) -> list[Message]:
     return await Message.filter(session=session).order_by("created_at")
 
 
-async def to_openai_messages(session: Session) -> list[dict]:
+def _message_content_for_openai(message: Message) -> str:
+    sections = [message.content]
+
+    if message.plan:
+        sections.append(f"Proposed plan:\n{message.plan}")
+
+    if message.code:
+        sections.append(f"Proposed CadQuery code:\n{message.code}")
+
+    return "\n\n".join(sections)
+
+
+async def to_openai_messages(session: Session) -> list[dict[str, str]]:
     messages = await get_messages(session)
     return [
-        {"role": m.role, "content": m.content}
+        {"role": m.role, "content": _message_content_for_openai(m)}
         for m in messages
         if m.role in ("user", "assistant", "system")
     ]

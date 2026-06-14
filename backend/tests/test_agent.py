@@ -11,6 +11,8 @@ from app.models.session import (
     get_messages,
     set_pending_code,
     set_pending_plan,
+    add_message,
+    to_openai_messages,
 )
 from app.models.orm import Session
 
@@ -105,6 +107,47 @@ async def test_clear_pending_state_clears_plan_and_code(db):
     refreshed = await Session.get(id=session.id)
     assert refreshed.pending_plan is None
     assert refreshed.pending_code is None
+
+
+@pytest.mark.asyncio
+async def test_to_openai_messages_includes_persisted_plan_and_code(db):
+    session = await create_session()
+
+    plan = "Create a 50x30x10mm enclosure with four mounting holes."
+    code = "result = cq.Workplane('XY').box(50, 30, 10)"
+
+    await add_message(
+        session,
+        "assistant",
+        "[tool_call: propose_plan]",
+        plan=plan,
+    )
+
+    await add_message(
+        session,
+        "assistant",
+        "[tool_call: propose_cadquery_code]",
+        code=code,
+    )
+
+    messages = await to_openai_messages(session)
+
+    assert messages == [
+        {
+            "role": "assistant",
+            "content": (
+                "[tool_call: propose_plan]\n\n"
+                f"Proposed plan:\n{plan}"
+            ),
+        },
+        {
+            "role": "assistant",
+            "content": (
+                "[tool_call: propose_cadquery_code]\n\n"
+                f"Proposed CadQuery code:\n{code}"
+            ),
+        },
+    ]
 
 
 @pytest.mark.asyncio

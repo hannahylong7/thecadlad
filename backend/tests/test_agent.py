@@ -246,7 +246,7 @@ async def test_run_agent_turn_disables_parallel_tool_calls(db):
 async def test_execute_approved_code_respects_max_iterations(db):
     session = await create_session()
 
-    session.iteration = MAX_ITERATIONS
+    session.failed_iterations = MAX_ITERATIONS
     session.pending_code = "result = cq.Workplane('XY').box(10, 10, 10)"
     await session.save()
 

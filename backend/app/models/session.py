@@ -62,6 +62,11 @@ async def clear_pending_state(session: Session) -> None:
     await session.save(update_fields=["pending_code", "pending_plan", "updated_at"])
 
 
+async def increment_failed_iterations(session: Session) -> None:
+    session.failed_iterations += 1
+    await session.save(update_fields=["failed_iterations", "updated_at"])
+
+
 async def update_session_artifact(
     session: Session,
     stl_path: str,

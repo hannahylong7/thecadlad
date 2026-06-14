@@ -16,6 +16,7 @@ class Session(Model):
     current_png_path = fields.CharField(max_length=512, null=True)
 
     iteration = fields.IntField(default=0)
+    failed_iterations = fields.IntField(default=0)
 
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)

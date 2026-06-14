@@ -23,6 +23,7 @@ from app.models.session import (
     complete_job,
     create_job,
     fail_job,
+    increment_failed_iterations,
 )
 from app.services.executor import execute_cadquery
 from app.services.tools.definitions import SYSTEM_PROMPT, TOOLS
@@ -219,7 +220,7 @@ async def run_agent_turn(
 
 async def execute_approved_code(session: Session) -> dict[str, Any]:
 
-    if session.iteration >= MAX_ITERATIONS:
+    if session.failed_iterations >= MAX_ITERATIONS:
         await update_session_status(session, "error")
         return {
             "type": "error",
@@ -268,6 +269,7 @@ async def execute_approved_code(session: Session) -> dict[str, Any]:
     else:
         timed_out = "timed out" in (result.stderr or "").lower()
         await fail_job(job, result.stderr or "", duration_ms, timed_out=timed_out)
+        await increment_failed_iterations(session)
         await update_session_status(session, "error")
         error_msg = f"Execution failed:\n{result.stderr}"
 

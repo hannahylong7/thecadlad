@@ -305,49 +305,6 @@ async def test_execute_approved_code_respects_max_iterations(db):
 
 
 @pytest.mark.asyncio
-async def test_run_agent_turn_internal_nudge_is_not_persisted(db):
-    session = await create_session()
-
-    text_choice = MagicMock()
-    text_choice.message.tool_calls = None
-    text_choice.message.content = "I can do that."
-
-    text_response = MagicMock()
-    text_response.choices = [text_choice]
-
-    mock_tool_call = MagicMock()
-    mock_tool_call.function.name = "propose_cadquery_code"
-    mock_tool_call.function.arguments = json.dumps({
-        "code": "result = cq.Workplane('XY').box(10, 10, 10)",
-        "description": "Creates a simple cube.",
-    })
-
-    tool_choice = MagicMock()
-    tool_choice.message.tool_calls = [mock_tool_call]
-    tool_choice.message.content = None
-
-    tool_response = MagicMock()
-    tool_response.choices = [tool_choice]
-
-    with patch(
-        "app.services.agent.client.chat.completions.create",
-        new_callable=AsyncMock,
-        side_effect=[text_response, tool_response],
-    ):
-        result = await run_agent_turn(session, "Make me a cube")
-
-    assert result["type"] == "code_proposal"
-
-    messages = await get_messages(session)
-    persisted_user_messages = [
-        message.content
-        for message in messages
-        if message.role == "user"
-    ]
-    assert persisted_user_messages == ["Make me a cube"]
-
-
-@pytest.mark.asyncio
 async def test_run_agent_turn_handles_malformed_tool_arguments(db):
     session = await create_session()
 

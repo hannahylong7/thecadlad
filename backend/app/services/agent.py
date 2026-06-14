@@ -189,30 +189,19 @@ async def run_agent_turn(
         {"type": "function", "function": {"name": force_tool}}
         if force_tool else "auto"
     )
+    
+    response = await _create_chat_completion(messages, tool_choice)
+    choice = response.choices[0]
 
-    nudged_for_tool = False
-    while True:
-        response = await _create_chat_completion(messages, tool_choice)
-        choice = response.choices[0]
+    tool_calls = choice.message.tool_calls or []
+    fn_name = tool_calls[0].function.name if tool_calls else "none"
+    logger.info("agent_turn session=%s model=%s tool=%s status=%s", session.id, settings.model, fn_name, session.status)
 
-        tool_calls = choice.message.tool_calls or []
-        fn_name = tool_calls[0].function.name if tool_calls else "none"
-        logger.info("agent_turn session=%s model=%s tool=%s status=%s", session.id, settings.model, fn_name, session.status)
+    if tool_calls:
+        tool_call = tool_calls[0]
+        return await _run_tool_call(session, tool_call)
 
-        if tool_calls:
-            tool_call = tool_calls[0]
-            return await _run_tool_call(session, tool_call)
-
-        text = choice.message.content or ""
-
-        if session.status not in ("planning", "coding") or nudged_for_tool:
-            break
-
-        await add_message(session, "assistant", text)
-        nudge = "Please now call the propose_cadquery_code tool to write the actual code."
-        messages.append({"role": "assistant", "content": text})
-        messages.append({"role": "user", "content": nudge})
-        nudged_for_tool = True
+    text = choice.message.content or ""
 
     await add_message(session, "assistant", text)
     await update_session_status(session, "idle")

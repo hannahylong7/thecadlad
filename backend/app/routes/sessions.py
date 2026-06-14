@@ -94,11 +94,30 @@ async def approve_step(
     session = await _get_or_404(session_id)
 
     if session.status == "awaiting_plan_approval":
+        updated = await Session.filter(
+            id=session_id,
+            status="awaiting_plan_approval",
+        ).update(status="planning")
+
+        if updated == 0:
+            raise HTTPException(
+                status_code=409,
+                detail="Plan response has already been processed",
+            )
         result = await handle_plan_response(session, body.approved, body.feedback)
     elif session.status == "awaiting_code_approval":
         if body.approved:
+            updated = await Session.filter(
+                id=session_id,
+                status="awaiting_code_approval",
+            ).update(status="executing")
+
+            if updated == 0:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Code approval has already been processed",
+                )
             background_tasks.add_task(_run_execution_background, session_id)
-            await update_session_status(session, "executing")
             return {
                 "type": "executing",
                 "session_status": "executing",

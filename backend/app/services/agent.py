@@ -1,4 +1,5 @@
 import json
+import asyncio
 from collections.abc import Awaitable, Callable
 from typing import Any, cast
 
@@ -234,7 +235,11 @@ async def execute_approved_code(session: Session) -> dict[str, Any]:
     await update_session_status(session, "executing")
 
     start = time.time()
-    result = execute_cadquery(session.pending_code, str(session.id))
+    result = await asyncio.to_thread(
+        execute_cadquery,
+        session.pending_code,
+        str(session.id),
+    )
     duration_ms = int((time.time() - start) * 1000)
     logger.info("execution session=%s iteration=%d success=%s duration_ms=%d", session.id, session.iteration, result.success, duration_ms)
 
